@@ -1,14 +1,19 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 import anthropic
+import openai
 import os
 import uvicorn
 import json
 
 app = FastAPI()
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """You are a specialized New York City information assistant.
 You ONLY answer questions about New York City — its boroughs, landmarks, history,
@@ -40,11 +45,32 @@ def stream_response(message: str):
     yield json.dumps({"chunk": "", "done": True}) + "\n"
 
 
+def call_openai(message: str) -> str:
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        max_tokens=256,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": message},
+        ],
+    )
+    return response.choices[0].message.content
+
+
 @app.post("/chat")
 def chat(req: ChatRequest, x_api_key: Optional[str] = Header(None)):
     if x_api_key != "test-key-123":
         raise HTTPException(status_code=401, detail="Unauthorized")
+    import time
+    # time.sleep(61)
     return StreamingResponse(stream_response(req.message), media_type="application/x-ndjson")
+
+
+@app.post("/chat/openai")
+def chat_openai(req: ChatRequest, x_api_key: Optional[str] = Header(None)):
+    if x_api_key != "test-key-123":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return {"response": call_openai(req.message)}
 
 
 if __name__ == "__main__":
