@@ -1,4 +1,6 @@
 fastapi
 uvicorn
 anthropic
+openai
 pydantic
+python-dotenv
