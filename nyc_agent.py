@@ -57,21 +57,24 @@ def call_openai(message: str) -> str:
     return response.choices[0].message.content
 
 
+@app.get("/ping")
+def ping():
+    return {"status": "ok"}
+
+
+@app.post("/invocations")
+def invocations(req: ChatRequest, x_api_key: Optional[str] = Header(None)):
+    if x_api_key != "test-key-123":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return {"output": call_openai(req.message)}
+
+
 @app.post("/chat")
 def chat(req: ChatRequest, x_api_key: Optional[str] = Header(None)):
     if x_api_key != "test-key-123":
         raise HTTPException(status_code=401, detail="Unauthorized")
-    import time
-    # time.sleep(61)
     return StreamingResponse(stream_response(req.message), media_type="application/x-ndjson")
 
 
-@app.post("/chat/openai")
-def chat_openai(req: ChatRequest, x_api_key: Optional[str] = Header(None)):
-    if x_api_key != "test-key-123":
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return {"response": call_openai(req.message)}
-
-
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
